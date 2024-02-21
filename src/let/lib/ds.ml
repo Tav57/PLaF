@@ -2,12 +2,14 @@
 
 (* expressed values and environments are defined mutually recursively *)
 
+type 'a tree = Empty | Node of 'a * 'a tree * 'a tree
 
 type exp_val =
   | NumVal of int
   | BoolVal of bool
   | PairVal of exp_val*exp_val
-  | TupleVal of exp_val list
+  | ListVal of exp_val list
+  | TreeVal of exp_val tree
 type env =
   | EmptyEnv
   | ExtendEnv of string*exp_val*env
@@ -99,13 +101,17 @@ let bool_of_boolVal : exp_val -> bool ea_result =  function
   |  BoolVal b -> return b
   | _ -> error "Expected a boolean!"
 
-let list_of_tupleVal : exp_val -> (exp_val list)  ea_result =  function
-  |  TupleVal l -> return l
-  | _ -> error "Expected a tuple!"
+let list_of_listVal : exp_val -> (exp_val list)  ea_result =  function
+  |  ListVal l -> return l
+  | _ -> error "Expected a list!"
            
 let pair_of_pairVal : exp_val -> (exp_val*exp_val) ea_result =  function
   |  PairVal(ev1,ev2) -> return (ev1,ev2)
   | _ -> error "Expected a pair!"
+
+let tree_of_treeVal : exp_val -> (exp_val tree) ea_result = function
+  | TreeVal t -> return t
+  | _ -> error "Expected a tree!"
            
 let rec string_of_expval = function
   | NumVal n -> "NumVal " ^ string_of_int n
