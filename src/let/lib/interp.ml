@@ -1,7 +1,12 @@
 open Parser_plaf.Ast
 open Parser_plaf.Parser
 open Ds
-    
+
+(*
+  Names: Tav Ben-Shoan, Brendan Lee
+  Pledge: I pledge my honor that I have abided by the Stevens Honor System
+*)
+
 (** [eval_expr e] evaluates expression [e] *)
 let rec eval_expr : expr -> exp_val ea_result =
   fun e ->
@@ -68,22 +73,44 @@ let rec eval_expr : expr -> exp_val ea_result =
     error "Debug called"
   | IsEmpty(e) -> 
     eval_expr e >>=
-    tree_of_treeVal >>= fun (n,_,_) ->
-    return (BoolVal (n = Empty))
-  | EmptyTree(_t) -> return (TreeVal _t)
-  | Node(e1,e2,e3) -> failwith "not implemented yet"
-  | CaseT(e1,e2,id1,id2,id3,e3) -> failwith "not implemented yet"
+    tree_of_treeVal >>= fun tree ->
+    return (BoolVal (tree = Empty))
+  | EmptyTree(_t) -> return (TreeVal Empty)
+  | Node(e1,e2,e3) -> 
+    eval_expr e1 >>= int_of_numVal >>= fun ev1 ->
+    eval_expr e2 >>= tree_of_treeVal >>= fun ev2 ->
+    eval_expr e3 >>= tree_of_treeVal >>= fun ev3 ->
+    return (TreeVal (Node (NumVal ev1, ev2, ev3)))
+  | CaseT(e1,e2,id1,id2,id3,e3) ->
+    (eval_expr e1 >>= tree_of_treeVal >>= fun t1 ->
+      match t1 with
+      | Empty -> eval_expr e2
+      | Node (a, l, r) -> extend_env id1 a >>+
+      extend_env id2 (TreeVal l) >>+
+      extend_env id3 (TreeVal r) >>+
+      eval_expr e3)
+  | Record(fs) -> 
+    let rec record_helper fs used_ids =
+      match fs with
+      | [] -> return []
+      | (id, (_, e))::t ->
+        if find_id id used_ids then error ("Record: duplicate fields")
+        else
+          eval_expr e >>= fun ev ->
+          extend_env id ev >>+
+          record_helper t (id::used_ids) >>= fun fs_t ->
+          return ((id, ev)::fs_t)
+    in record_helper fs [] >>= fun processed_fields ->
+    return (RecordVal processed_fields)
+  | Proj(e,id) -> 
+    eval_expr e >>= record_of_recordVal >>= fun r -> record_get id r
   | _ -> failwith "Not implemented yet!"
 
 (** [eval_prog e] evaluates program [e] *)
 let eval_prog (AProg(_,e)) =
   eval_expr e
 
-
 (** [interp s] parses [s] and then evaluates it *)
 let interp (e:string) : exp_val result =
   let c = e |> parse |> eval_prog
   in run c
-  
-
-
